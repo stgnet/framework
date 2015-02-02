@@ -199,6 +199,9 @@ class DB_sqlite3 extends DB_common
 	  $mode=SQLITE_BOTH;
       }
       
+      if (!is_object($result)) {
+	      throw new \Exception("There is a bug. I wasn't given an object.");
+      }
       $arr = $result->fetchArray($mode);
       
       if ($arr) 
@@ -266,9 +269,8 @@ class DB_sqlite3 extends DB_common
      * @return int  the number of rows.  A DB_Error object on failure.
      */
       
-     function affectedRows()
-     {
-       throw new \Exception("Unimplemented with PHPs Sqlite3 implementation");
+     function affectedRows() {
+	     return $this->connection->changes();
      }
      
      // }}}
