@@ -71,7 +71,7 @@ write_freepbxconf() {
 		\$amp_conf['AMPDBHOST']	= '$AMPDBHOST';
 		\$amp_conf['AMPDBNAME']	= '$AMPDBNAME';
 		\$amp_conf['AMPDBENGINE'] = '$AMPDBENGINE';
-		\$amp_conf['datasource']	= ''; //for sqlite3
+		\$amp_conf['AMPDBFILE']	= '$AMPDBFILE'; //for sqlite3
 
 		require_once('${AMPWEBROOT}/admin/bootstrap.php');
 

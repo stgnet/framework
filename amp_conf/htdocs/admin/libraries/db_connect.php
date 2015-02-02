@@ -3,6 +3,7 @@
 require_once('DB.php'); //PEAR must be installed
 require_once(dirname(__FILE__).'/freepbx_DB.php');
 
+
 switch ($amp_conf['AMPDBENGINE']) {
 	case "pgsql":
 		die_freepbx("pgsql support is deprecated. Please use mysql or mysqli only.");
@@ -44,13 +45,8 @@ switch ($amp_conf['AMPDBENGINE']) {
 		break;
 	case "sqlite3":
 
-		/* on centos this extension is not loaded by default */
-		if (! extension_loaded('sqlite3') && ! extension_loaded('SQLITE3'))
-			die_freepbx('sqlite3.so extension must be loaded to run with sqlite3');
-
-		if (! @require_once('DB/sqlite3.php') )
-		{
-			die_freepbx("Your PHP installation has no PEAR/SQLite3 support. Please install php-sqlite3 and php-pear.");
+		if (!class_exists('DB_sqlite3')) {
+			include __DIR__.'/sqlite3.php';
 		}
 
 		$datasource = "sqlite3:///" . $amp_conf['AMPDBFILE'] . "?mode=0666";

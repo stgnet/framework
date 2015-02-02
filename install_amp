@@ -309,6 +309,7 @@ function collect_settings($filename, $dbhost = '', $dbuser = '', $dbpass = '', $
 		$amp_conf['AMPDBENGINE']="sqlite3";
 		$amp_conf['db_engine']="sqlite3";
 		$amp_conf['AMPDBFILE']=$sqlite_file;
+		$amp_conf['datasource']=$sqlite_file;
 	}
 
 	outn("Enter a USERNAME to connect to the Asterisk Manager interface:\n [admin] ");
@@ -1405,7 +1406,11 @@ out("OK");
 
 if($installdb) {
 	outn("Checking state of FreePBX DB...");
-	$sql = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '".$amp_conf["AMPDBNAME"]."'";
+	if ($db_engine == "sqlite3") {
+		$sql = "SELECT * FROM sqlite_master WHERE type='table'";
+	} else {
+		$sql = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '".$amp_conf["AMPDBNAME"]."'";
+	}
 	if(!$db->getOne($sql)) {
 		outn("FreePBX DB is empty, inserting standard rows...");
 		installampimport_mysql_dump('newinstall.sql');
@@ -1416,8 +1421,13 @@ if($installdb) {
 
 	//for asterisk CDR
 	outn("Checking state of FreePBX CDRDB...");
-	$datasource = 'mysql://'.$amp_conf["AMPDBUSER"].':'.$amp_conf["AMPDBPASS"].'@'.$amp_conf["AMPDBHOST"].'/asteriskcdrdb';
-	$cdrdb = DB::connect($datasource); // attempt connection
+	if ($db_engine == "sqlite3") {
+		$cdrdbfile = dirname($amp_conf['AMPDBFILE'])."/asteriskcdrdb.db";
+		$dsn = "sqlite3:///$cdrdbfile?mode=0666";
+	} else {
+		$dsn = 'mysql://'.$amp_conf["AMPDBUSER"].':'.$amp_conf["AMPDBPASS"].'@'.$amp_conf["AMPDBHOST"].'/asteriskcdrdb';
+	}
+	$cdrdb = DB::connect($dsn); // attempt connection
 	if(DB::IsError($cdrdb)) {
 		out("FAILED TO INSTALL CDR");
 	} else {

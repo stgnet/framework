@@ -129,13 +129,16 @@ class DB_sqlite3 extends DB_common
   
     $isSelect = preg_match ("/^\s*SELECT/i", $query); 
 
-    if (! $isSelect)
-      $this->result = $this->connection->exec($query);
-    else
-      $this->result = $this->connection->query($query);
+    if (!$isSelect) {
+	    $this->result = $this->connection->exec($query);
+	    return $this->result;
+    } // else...
+
+    $this->result = $this->connection->query($query);
     
-    if (!$this->result)
-       return $this->RaiseError($this->errorNative());
+    if ($this->result === false) {
+	    return $this->RaiseError($this->errorNative());
+    }
     
     return $this->result;
   }
