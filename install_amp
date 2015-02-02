@@ -64,6 +64,7 @@ function showHelp() {
 	out("                           (Intended for unattended installers only)",false);
 	out("  --set-freepbx-settings   Force set the internal FreePBX DB Settings with install time parameters",false);
 	out("  --installdb              Set up the FreePBX database",false);
+	out("  --sqlite <filename>      Use SQLite3, instead of MySQL",false);
 	out("  --cleaninstall           Like 'make clean' will clean up any previous settings or previous setup while installing a-new",false);
 	out("  --uninstall              Completely Uninstall FreePBX",false);
 }
@@ -235,7 +236,7 @@ function generate_configs() {
 
 
 /** Collect AMP settings */
-function collect_settings($filename, $dbhost = '', $dbuser = '', $dbpass = '', $dbname = 'asterisk') {
+function collect_settings($filename, $dbhost = '', $dbuser = '', $dbpass = '', $dbname = 'asterisk', $sqlite, $sqlite_file) {
 	global $webroot;
 	global $ampsbin_dir;
 	global $ampbin_dir;
@@ -277,28 +278,37 @@ function collect_settings($filename, $dbhost = '', $dbuser = '', $dbpass = '', $
 		return;
 	}
 
-	outn("Enter your USERNAME to connect to the '$dbname' database:\n [".($dbuser ? $dbuser : $asterisk_user) . "] ");
-	$key = trim(fgets(STDIN,1024));
-	if (preg_match('/^$/',$key)) {
-		$amp_conf["AMPDBUSER"] = ($dbuser ? $dbuser : $asterisk_user);
-	} else {
-		$amp_conf["AMPDBUSER"] = $key;
-	}
+	if (!$sqlite) {
+		outn("Enter your USERNAME to connect to the '$dbname' database:\n [".($dbuser ? $dbuser : $asterisk_user) . "] ");
+		$key = trim(fgets(STDIN,1024));
+		if (preg_match('/^$/',$key)) {
+			$amp_conf["AMPDBUSER"] = ($dbuser ? $dbuser : $asterisk_user);
+		} else {
+			$amp_conf["AMPDBUSER"] = $key;
+		}
 
-	outn("Enter your PASSWORD to connect to the '$dbname' database:\n [".($dbpass ? $dbpass : $asterisk_pass)."] ");
-	$key = trim(fgets(STDIN,1024));
-	if (preg_match('/^$/',$key)) {
-		$amp_conf["AMPDBPASS"] = ($dbpass ? $dbpass : $asterisk_pass);
-	} else {
-		$amp_conf["AMPDBPASS"] = $key;
-	}
+		outn("Enter your PASSWORD to connect to the '$dbname' database:\n [".($dbpass ? $dbpass : $asterisk_pass)."] ");
+		$key = trim(fgets(STDIN,1024));
+		if (preg_match('/^$/',$key)) {
+			$amp_conf["AMPDBPASS"] = ($dbpass ? $dbpass : $asterisk_pass);
+		} else {
+			$amp_conf["AMPDBPASS"] = $key;
+		}
 
-	outn("Enter the hostname of the '$dbname' database:\n [".($dbhost ? $dbhost : "localhost")."] ");
-	$key = trim(fgets(STDIN,1024));
-	if (preg_match('/^$/',$key)) {
-		$amp_conf["AMPDBHOST"] = ($dbhost ? $dbhost : "localhost");
+		outn("Enter the hostname of the '$dbname' database:\n [".($dbhost ? $dbhost : "localhost")."] ");
+		$key = trim(fgets(STDIN,1024));
+		if (preg_match('/^$/',$key)) {
+			$amp_conf["AMPDBHOST"] = ($dbhost ? $dbhost : "localhost");
+		} else {
+			$amp_conf["AMPDBHOST"] = $key;
+		}
 	} else {
-		$amp_conf["AMPDBHOST"] = $key;
+		$amp_conf['AMPDBUSER']="sqlite3";
+		$amp_conf['AMPDBPASS']="sqlite3";
+		$amp_conf['AMPDBHOST']="sqlite3";
+		$amp_conf['AMPDBENGINE']="sqlite3";
+		$amp_conf['db_engine']="sqlite3";
+		$amp_conf['AMPDBFILE']=$sqlite_file;
 	}
 
 	outn("Enter a USERNAME to connect to the Asterisk Manager interface:\n [admin] ");
@@ -666,6 +676,7 @@ $longopts = array(
 	"no-files",
 	"password=",
 	"sbin=",
+	"sqlite=",
 	"scripted",
 	"set-freepbx-settings",
 	"skip-module-install",
@@ -704,6 +715,8 @@ $dbhost = null;
 $dbname = 'asterisk';
 $new_username = null;
 $new_password = null;
+$sqlite = false;
+$sqlite_filename = "/dev/null";
 
 $runas_uid = "asterisk";
 $runas_gid = "asterisk";
@@ -830,6 +843,14 @@ foreach ($args[0] as $arg) {
 		break;
 		case "--installdb":
 			$installdb = true;
+		break;
+		case "--sqlite":
+			$sqlite = true;
+			$sqlite_filename = $arg[1];
+			$db_engine = "sqlite3";
+			if (!file_exists($sqlite_filename)) {
+				throw new \Exception("SQLITE DB File $sqlite_filename doesn't exist. Make it");
+			}
 		break;
 	}
 }
@@ -1129,7 +1150,7 @@ if (!file_exists(AMP_CONF)) {
 	chgrp(AMP_CONF, $runas_gid);
 	chmod(AMP_CONF, 0640);
 
-	collect_settings(AMP_CONF, $dbhost, $new_username, $new_password, $dbname);
+	collect_settings(AMP_CONF, $dbhost, $new_username, $new_password, $dbname, $sqlite, $sqlite_filename);
 
 	out("Assuming new install, --install-moh added to command line");
 	$install_moh = true;
@@ -1355,21 +1376,14 @@ switch ($db_engine) {
 	break;
 
 	case "sqlite3":
+		include 'amp_conf/htdocs/admin/libraries/sqlite3.php';
+
 		if (!isset($amp_conf["AMPDBFILE"])) {
 			die("You must setup properly AMPDBFILE in /etc/amportal.conf");
 		}
 
 		if (isset($amp_conf["AMPDBFILE"]) == "") {
 			die("AMPDBFILE in /etc/amportal.conf cannot be blank");
-		}
-
-		/* on centos this extension is not loaded by default */
-		if (! extension_loaded('sqlite3.so')  && ! extension_loaded('SQLITE3'))
-			dl('sqlite3.so');
-
-		if (! @require_once('DB/sqlite3.php') ) {
-			out("FAILED");
-			fatal( "Your PHP installation has no PEAR/SQLite3 support. Please install php-sqlite3 and php-pear.");
 		}
 
 		$datasource = "sqlite3:///" . $amp_conf["AMPDBFILE"] . "?mode=0666";
