@@ -1,8 +1,10 @@
 <?php
 global $db;
 
-if (!$db->getAll('SHOW COLUMNS FROM featurecodes WHERE FIELD = "helptext"')) {
+$row = $db->getRow('SELECT * FROM featurecodes LIMIT 1', DB_FETCHMODE_ASSOC);
+if (!isset($row['helptext'])) {
 	out("Adding helptext to featurecodes table");
-    $sql = "ALTER TABLE `featurecodes` ADD COLUMN `helptext` varchar (250) NOT NULL AFTER `description`";
-    $db->query($sql);
+	$sql = "ALTER TABLE `featurecodes` ADD COLUMN `helptext` varchar (250) NOT NULL AFTER `description`";
+	$db->query($sql);
 }
+

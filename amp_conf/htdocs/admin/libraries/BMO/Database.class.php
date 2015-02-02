@@ -41,20 +41,25 @@ class Database extends PDO {
 		if (isset($args[0]) && !empty($args[0]) && is_string($args[0])) {
 			$dsn = $args[0];
 		} else {
-			$host = !empty($amp_conf['AMPDBHOST']) ? $amp_conf['AMPDBHOST'] : 'localhost';
-			$dsn = "mysql:host=".$host.";dbname=".$amp_conf['AMPDBNAME'];
-		}
+			if ($amp_conf['AMPDBENGINE'] == "mysql") {
+				$host = !empty($amp_conf['AMPDBHOST']) ? $amp_conf['AMPDBHOST'] : 'localhost';
+				$dsn = "mysql:host=".$host.";dbname=".$amp_conf['AMPDBNAME'];
+				if (isset($args[1]) && !empty($args[0]) && is_string($args[0])) {
+					$username = $args[1];
+				} else {
+					$username = $amp_conf['AMPDBUSER'];
+				}
 
-		if (isset($args[1]) && !empty($args[0]) && is_string($args[0])) {
-			$username = $args[1];
-		} else {
-			$username = $amp_conf['AMPDBUSER'];
-		}
-
-		if (isset($args[2]) && !empty($args[0]) && is_string($args[0])) {
-			$password = $args[2];
-		} else {
-			$password = $amp_conf['AMPDBPASS'];
+				if (isset($args[2]) && !empty($args[0]) && is_string($args[0])) {
+					$password = $args[2];
+				} else {
+					$password = $amp_conf['AMPDBPASS'];
+				}
+			} elseif ($amp_conf['AMPDBENGINE'] == "sqlite3") {
+				$dsn = "sqlite:/".$amp_conf['AMPDBFILE'];
+				$username = false;
+				$password = false;
+			}
 		}
 
 		try {

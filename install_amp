@@ -309,7 +309,6 @@ function collect_settings($filename, $dbhost = '', $dbuser = '', $dbpass = '', $
 		$amp_conf['AMPDBENGINE']="sqlite3";
 		$amp_conf['db_engine']="sqlite3";
 		$amp_conf['AMPDBFILE']=$sqlite_file;
-		$amp_conf['datasource']=$sqlite_file;
 	}
 
 	outn("Enter a USERNAME to connect to the Asterisk Manager interface:\n [admin] ");
@@ -1649,9 +1648,11 @@ if (!is_dir($amp_conf["ASTSPOOLDIR"]."/fax"))
 	amp_mkdir($amp_conf["ASTSPOOLDIR"]."/fax","0766",true);
 
 //Check to make sure database is installed
-$sql = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '".$amp_conf["AMPDBNAME"]."'";
-if(!$db->getOne($sql)) {
-	fatal('The '. $amp_conf["AMPDBNAME"] . ' ' . $amp_conf["AMPDBENGINE"] . ' database appears empty, try running with the "--cleaninstall --installdb" commands or install the database manually');
+if ($db_engine != "sqlite3") {
+	$sql = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '".$amp_conf["AMPDBNAME"]."'";
+	if(!$db->getOne($sql)) {
+		fatal('The '. $amp_conf["AMPDBNAME"] . ' ' . $amp_conf["AMPDBENGINE"] . ' database appears empty, try running with the "--cleaninstall --installdb" commands or install the database manually');
+	}
 }
 // **** Set permissions all files
 

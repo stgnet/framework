@@ -50,27 +50,45 @@ class DB_Helper {
 		}
 
 		// Definitions
+
+		$amp_conf = FreePBX::$conf;
+
 		$create = "CREATE TABLE IF NOT EXISTS ".self::$dbname." ( `module` CHAR(64) NOT NULL, `key` CHAR(255) NOT NULL, `val` LONGBLOB, `type` CHAR(16) DEFAULT NULL, `id` CHAR(255) DEFAULT NULL)";
-		// These are limited to 50 chars as prefixes are limited to 255 chars in total (or 1000 in later versions
-		// of mysql), and UTF can cause that to overflow. 50 is plenty.
-		$index['index1'] = "ALTER TABLE ".self::$dbname." ADD INDEX index1 (`key`(50))";
-		$index['index3'] = "ALTER TABLE ".self::$dbname." ADD UNIQUE INDEX index3 (`module`, `key`(50), `id`(50))";
-		$index['index5'] = "ALTER TABLE ".self::$dbname." ADD INDEX index5 (`module`, `id`(50))";
+
+		if ($amp_conf['AMPDBENGINE'] == "mysql") {
+			// These are limited to 50 chars as prefixes are limited to 255 chars in total (or 1000 in later versions
+			// of mysql), and UTF can cause that to overflow. 50 is plenty.
+			$index['index1'] = "ALTER TABLE ".self::$dbname." ADD INDEX index1 (`key`(50))";
+			$index['index3'] = "ALTER TABLE ".self::$dbname." ADD UNIQUE INDEX index3 (`module`, `key`(50), `id`(50))";
+			$index['index5'] = "ALTER TABLE ".self::$dbname." ADD INDEX index5 (`module`, `id`(50))";
+		} elseif ($amp_conf['AMPDBENGINE'] == "sqlite3") {
+			$index['index1'] = "CREATE INDEX 'index1' on ".self::$dbname." (`key`)";
+			$index['index3'] = "CREATE INDEX 'index3' on ".self::$dbname." (`module`, `key`, `id`)";
+			$index['index5'] = "CREATE INDEX 'index5' on ".self::$dbname." (`module`, `id`)";
+		} else {
+			throw new \Exception("OK crazytown. I don't know what the DB driver is for ".$amp_conf['AMPDBENGINE']."\n");
+		}
+
 
 		// Check to make sure our Key/Value table exists.
 		try {
 			$res = self::$db->query("SELECT * FROM `".self::$dbname."` LIMIT 1");
 		} catch (Exception $e) {
-			if ($e->getCode() == "42S02") { // Table does not exist
+			$code = $e->getCode();
+			if ($code == "42S02" || $code == "HY000") { // Table does not exist
 				self::$db->query($create);
 			} else {
 				self::checkException($e);
 			}
 		}
 
-		// Check for indexes.
-		// TODO: This only works on MySQL
-		$res = self::$db->query("SHOW INDEX FROM `".self::$dbname."`");
+		if ($amp_conf['AMPDBENGINE'] == "mysql") {
+			$sql = "SHOW INDEX FROM `".self::$dbname."`";
+		} elseif ($amp_conf['AMPDBENGINE'] == "sqlite3") {
+			$sql = 'SELECT type, tbl_name, name FROM sqlite_master WHERE type="index" and tbl_name="'.self::$dbname.'"';
+		}
+
+		$res = self::$db->query($sql);
 		$out = $res->fetchAll(PDO::FETCH_COLUMN|PDO::FETCH_GROUP, 2);
 		foreach ($out as $i => $null) {
 			// Do we not know about this index? (Are we upgrading?)
