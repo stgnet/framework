@@ -41,7 +41,9 @@ class DB_sqlite3 extends DB_common
   // {{{ PROPERTIES
   
 
-  var $phptype = 'sqlite3';
+  public $phptype = 'sqlite3';
+
+  public $dbsyntax = "sqlite3";
   
   // }}}
   // {{{ constructor
