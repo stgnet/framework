@@ -1,16 +1,26 @@
 #!/usr/bin/env php
 <?php
-$options = getopt("", array("fix_zend"));
+$options = getopt("", array("fix_zend","motd"));
 /* Optional. It’s better to do it in the php.ini file */
 date_default_timezone_set('America/Los_Angeles');
-
+$uid = posix_getuid();
+$ismotd = (isset($argv[1]) && $argv[1] == "motd");
+if ($uid != 0 && !$ismotd){
+	echo "This app must be run as the root user\r\n";
+	exit(1);
+}
+//If we are not the root user just looking for motd limit what we try to load to avoid an error;
+if ($uid != 0 && $ismotd){
+	$bootstrap_settings['skip_astman'] = true;
+	$restrict_mods = array('framework' => true, 'sysadmin' => true);
+}
 //Bootstrap to give access to FreePBX internals
 $bootstrap_settings['freepbx_auth'] = false;
 $bootstrap_settings['fix_zend'] = isset($options['fix_zend']);
 //Wrapped in a global try catch incase of zend errors
 try {
 	if (!@include_once(getenv('FREEPBX_CONF') ? getenv('FREEPBX_CONF') : '/etc/freepbx.conf')) {
-		include_once('/etc/asterisk/freepbx.conf');
+		@include_once('/etc/asterisk/freepbx.conf');
 	}
 } catch(\Exception $e) {
 	if(!isset($options['fix_zend']) && function_exists('SPLAutoloadBroken') && SPLAutoloadBroken()) {
@@ -19,7 +29,7 @@ try {
 		$name = isset($argv[0]) ? basename($argv[0]) : "fwconsole";
 		echo sprintf(_("Please run: %s --fix_zend"),$name)."\n";
 		exit(5);
-	} else {
+	}else{
 		 throw $e;
 	}
 }
