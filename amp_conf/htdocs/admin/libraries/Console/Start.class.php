@@ -20,6 +20,7 @@ class Start extends Command {
 			->setDefinition(array(
 				new InputOption('full', 'f', InputOption::VALUE_NONE, 'Chown all files'),
 				new InputArgument('args', InputArgument::IS_ARRAY, null, null),));
+				$this->skipChown = false;
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output){
@@ -63,8 +64,10 @@ class Start extends Command {
 		} else {
 			$brand = \FreePBX::Config()->get("DASHBOARD_FREEPBX_BRAND");
 			$output->writeln(sprintf(_('Running %s startup...'),$brand));
+			if(!$this->skipChown){
 			$chown = new Chown();
 			$chown->execute($input, $output);
+			}
 			$output->writeln('');
 			$output->writeln(_('Checking Asterisk Status...'));
 			$aststat = $this->asteriskProcess();
